@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from openai import OpenAI, OpenAIError
 
 # =========================================================
-# SECTION 1 — OpenAI Agent (merged from complaint_agent.py)
+# SECTION 1 — OpenAI Agent
 # =========================================================
 LLM_TIMEOUT_S = int(os.getenv("LLM_TIMEOUT", "25"))
 
@@ -157,7 +157,7 @@ def for_frontend(agent_result: dict[str, Any]) -> dict[str, Any]:
 
 
 # =========================================================
-# SECTION 2 — Streamlit App (merged original UI from app.py)
+# SECTION 2 — Streamlit App
 # =========================================================
 st.set_page_config(page_title="Student Complaint Assistant", page_icon="🗂️", layout="wide")
 
