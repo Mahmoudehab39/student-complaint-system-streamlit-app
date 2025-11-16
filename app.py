@@ -6,12 +6,12 @@ from __future__ import annotations
 import os, json, re
 from pathlib import Path
 from typing import Any, List, Dict, Optional
-
 import streamlit as st
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from dotenv import load_dotenv
 from openai import OpenAI, OpenAIError
+from config import HF_MODEL_NAME
 
 # =========================================================
 # SECTION 1 — OpenAI Agent
@@ -318,8 +318,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ===== BERT classifier from Hugging Face =====
-HF_MODEL_NAME = "your_hf_username/student-complaint-bert"  # <-- غيّرها لاسم موديلك على HF
+# ===== BERT classifier from Hugging Face ===== 
 
 FALLBACK_LABELS = [
     "Certificates_Documents",
