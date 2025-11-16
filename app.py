@@ -3,9 +3,10 @@
 # Layout: Main (left) + Custom Right Panel (no Sidebar)
 # ==============================================
 from __future__ import annotations
-import os, json, re
+import os, json, re, time, tempfile  # [MLflow] added time, tempfile
 from pathlib import Path
 from typing import Any, List, Dict, Optional
+import mlflow
 import streamlit as st
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
@@ -149,8 +150,53 @@ Rules:
 
 def ai_agent(student_complaint: str) -> dict[str, Any]:
     client = _get_client()
+
+    # [MLflow] Start timing and (optionally) an MLflow run
+    start_time = time.time()
+    run_active = False
+    if mlflow is not None:
+        try:
+            mlflow.set_experiment("student-complaint-ai-agent")  # experiment name
+            mlflow.start_run(run_name="ai_agent_run")
+            run_active = True
+            # log static params + simple metadata
+            mlflow.log_param("llm_model", "gpt-4o-mini")
+            mlflow.log_param("temperature", 0)
+            mlflow.log_param("max_tokens", 1000)
+            mlflow.log_param("timeout_s", LLM_TIMEOUT_S)
+            mlflow.log_param("complaint_length_chars", len(student_complaint or ""))
+        except Exception:
+            # if anything in MLflow fails, we silently ignore to keep behavior unchanged
+            run_active = False
+
     if not client:
-        return {"error": "OpenAI API key not configured. Set st.secrets['openai']['api_key'] or .env: OPENAI_API_KEY", "raw": ""}
+        # [MLflow] log missing-api-key status + metrics/artifact if run is active
+        if mlflow is not None and run_active:
+            try:
+                mlflow.log_param("status", "missing_api_key")
+                mlflow.log_metric("analysis_time", time.time() - start_time)
+                # Store complaint only as artifact
+                with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+                    json.dump(
+                        {
+                            "student_complaint": student_complaint,
+                            "error": "OpenAI API key not configured.",
+                        },
+                        f,
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+                    artifact_path = f.name
+                mlflow.log_artifact(artifact_path, artifact_path="agent_runs")
+                mlflow.end_run(status="FAILED")
+            except Exception:
+                # never break the app if MLflow has issues
+                pass
+
+        return {
+            "error": "OpenAI API key not configured. Set st.secrets['openai']['api_key'] or .env: OPENAI_API_KEY",
+            "raw": "",
+        }
 
     try:
         resp = client.chat.completions.create(
@@ -166,10 +212,98 @@ def ai_agent(student_complaint: str) -> dict[str, Any]:
         )
         raw = resp.choices[0].message.content
         parsed = json.loads(raw)
+
+        # [MLflow] log metrics and artifact on success
+        if mlflow is not None and run_active:
+            try:
+                duration = time.time() - start_time
+                mlflow.log_param("status", "ok")
+                mlflow.log_metric("analysis_time", duration)
+
+                # token usage metrics (if available)
+                usage = getattr(resp, "usage", None)
+                if usage is not None:
+                    prompt_tokens = getattr(usage, "prompt_tokens", 0) or 0
+                    completion_tokens = getattr(usage, "completion_tokens", 0) or 0
+                    total_tokens = getattr(usage, "total_tokens", 0) or 0
+                    mlflow.log_metric("prompt_tokens", float(prompt_tokens))
+                    mlflow.log_metric("completion_tokens", float(completion_tokens))
+                    mlflow.log_metric("total_tokens", float(total_tokens))
+
+                # is_technical metric if available
+                routing = parsed.get("routing", {}) or {}
+                is_tech = routing.get("is_technical")
+                if isinstance(is_tech, bool):
+                    mlflow.log_metric("is_technical", 1.0 if is_tech else 0.0)
+
+                # log complaint + parsed response as artifact
+                with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+                    json.dump(
+                        {
+                            "student_complaint": student_complaint,
+                            "agent_response": parsed,
+                        },
+                        f,
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+                    artifact_path = f.name
+                mlflow.log_artifact(artifact_path, artifact_path="agent_runs")
+                mlflow.end_run(status="FINISHED")
+            except Exception:
+                # Swallow MLflow errors to keep agent behavior unchanged
+                pass
+
         return parsed
+
     except OpenAIError as e:
+        # [MLflow] log error info and metrics if run is active
+        if mlflow is not None and run_active:
+            try:
+                mlflow.log_param("status", "openai_error")
+                mlflow.log_metric("analysis_time", time.time() - start_time)
+                with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+                    json.dump(
+                        {
+                            "student_complaint": student_complaint,
+                            "error_type": "OpenAIError",
+                            "error_message": str(e),
+                        },
+                        f,
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+                    artifact_path = f.name
+                mlflow.log_artifact(artifact_path, artifact_path="agent_runs")
+                mlflow.end_run(status="FAILED")
+            except Exception:
+                pass
+
         return {"error": f"OpenAI API error: {e}", "raw": ""}
+
     except Exception as e:
+        # [MLflow] log unexpected error info if run is active
+        if mlflow is not None and run_active:
+            try:
+                mlflow.log_param("status", "unexpected_error")
+                mlflow.log_metric("analysis_time", time.time() - start_time)
+                with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+                    json.dump(
+                        {
+                            "student_complaint": student_complaint,
+                            "error_type": "UnexpectedError",
+                            "error_message": str(e),
+                        },
+                        f,
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+                    artifact_path = f.name
+                mlflow.log_artifact(artifact_path, artifact_path="agent_runs")
+                mlflow.end_run(status="FAILED")
+            except Exception:
+                pass
+
         return {"error": f"Unexpected error: {e}", "raw": ""}
 
 def for_frontend(agent_result: dict[str, Any]) -> dict[str, Any]:
@@ -214,7 +348,8 @@ def for_frontend(agent_result: dict[str, Any]) -> dict[str, Any]:
         "verify": verify,
         "code_language": sol.get("code_language"),
         "code": code_raw,
-        "ticket_prefill": f"[AI Routing] type={'technical' if is_technical else 'non-technical'}; category={category}\n[Summary]\n{summary}\n[Steps]\n" + "\n".join(f"- {s}" for s in steps_out),
+        "ticket_prefill": f"[AI Routing] type={'technical' if is_technical else 'non-technical'}; category={category}\n[Summary]\n{summary}\n[Steps]\n"
+        + "\n".join(f"- {s}" for s in steps_out),
     }
     if not is_technical:
         ui.update({"summary": None, "steps": [], "verify": [], "code_language": None, "code": None})
@@ -393,6 +528,7 @@ with left_col:
         )
         submitted = st.form_submit_button("Classify", type="primary")
 
+    # (تم حذف st.caption)
 
     pred_box = st.container()
 
@@ -400,6 +536,7 @@ with left_col:
         if not text.strip():
             st.warning("Please enter the complaint text first.")
         else:
+            # ======= استبدال صندوق الحالة بسبينر مؤقت =======
             with st.spinner("Asking the AI agent..."):
                 agent_result = ai_agent(text)
                 agent_view = for_frontend(agent_result)
@@ -432,6 +569,7 @@ with left_col:
             else:
                 st.info("This looks non-technical.")
 
+                # ======= استبدال صندوق حالة BERT =======
                 with st.spinner("Classifying (BERT)..."):
                     top_label, top_conf = classify_top1(text)
                 display_label = LABEL_ALIAS.get(top_label, top_label)
@@ -536,6 +674,7 @@ with right_col:
 
         st.markdown("<div style='height:15px'></div>", unsafe_allow_html=True)
 
+        # ملاحظات (Arabic)
         st.markdown("""
         <div class="rp-card rtl">
         <div class="rp-title"><span class="dot"></span> ملاحظات</div>

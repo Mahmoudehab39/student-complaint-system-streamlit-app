@@ -1,0 +1,22 @@
+{
+  "student_complaint": "I paid the tuition fees by bank transfer three days ago, but the payment is still not updated on the system and I didn’t receive any official receipt.",
+  "agent_response": {
+    "routing": {
+      "is_technical": false,
+      "category": "administrative",
+      "confidence": 0.9
+    },
+    "summary": "Your payment has not been updated in the system yet.",
+    "steps_to_apply": [],
+    "verification_checklist": [
+      "Check your bank statement to confirm the transfer was completed.",
+      "Verify the payment details you used for the transfer.",
+      "Contact the finance department for confirmation of your payment."
+    ],
+    "requests_for_more_info": [],
+    "solution": {
+      "code_language": null,
+      "code": null
+    }
+  }
+}

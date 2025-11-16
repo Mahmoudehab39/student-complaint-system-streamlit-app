@@ -1,0 +1,39 @@
+{
+  "student_complaint": "The LMS does not let me log in, I get error 500",
+  "agent_response": {
+    "routing": {
+      "is_technical": true,
+      "category": "sys_networks",
+      "confidence": 0.9
+    },
+    "summary": "You're experiencing a server error while trying to log in.",
+    "steps_to_apply": [
+      {
+        "text": "Check your internet connection.",
+        "commands": []
+      },
+      {
+        "text": "Clear your browser cache and cookies.",
+        "commands": []
+      },
+      {
+        "text": "Try accessing the LMS from a different browser or device.",
+        "commands": []
+      },
+      {
+        "text": "Contact your IT support to check if the server is down.",
+        "commands": []
+      }
+    ],
+    "verification_checklist": [
+      "Ensure your internet connection is stable.",
+      "Confirm that you have cleared the cache and cookies.",
+      "Test logging in from another browser or device."
+    ],
+    "requests_for_more_info": [],
+    "solution": {
+      "code_language": null,
+      "code": null
+    }
+  }
+}

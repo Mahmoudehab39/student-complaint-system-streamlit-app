@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/2025/DEPI/Final%20Project/streamlit/mlruns/649903399451495885/d2c37e50817240a998bbe81498cf793b/artifacts
+end_time: 1763250443236
+entry_point_name: ''
+experiment_id: '649903399451495885'
+lifecycle_stage: active
+run_id: d2c37e50817240a998bbe81498cf793b
+run_name: ai_agent_run
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1763250431736
+status: 3
+tags: []
+user_id: Client
