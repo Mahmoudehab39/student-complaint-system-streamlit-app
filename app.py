@@ -1,3 +1,4 @@
+
 # ==============================================
 # Unified Streamlit App: AI Agent + BERT Classifier
 # Layout: Main (left) + Custom Right Panel (no Sidebar)
@@ -686,3 +687,14 @@ with right_col:
         """, unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
+# =========================================================
+# SECTION 3 — MLflow Dashboard 
+# =========================================================
+
+st.markdown("---")
+
+st.markdown("## 📊 MLflow Experiment Tracking")
+
+dagshub_url = "https://dagshub.com/DoaaHazem/classification-model-mlflow.mlflow/#/experiments/0?searchFilter=&orderByKey=attributes.start_time&orderByAsc=false&startTime=ALL&lifecycleFilter=Active&modelVersionFilter=All+Runs&datasetsFilter=W10%3D"
+
+st.markdown(f"[🔗 Open MLflow on Dagshub]({dagshub_url})")
